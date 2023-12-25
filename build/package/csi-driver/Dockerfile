@@ -1,5 +1,5 @@
 FROM scratch
 
-COPY csi-driver .
+COPY csi-driver-linux .
 
-ENTRYPOINT [ "./csi-driver" ]
+ENTRYPOINT [ "./csi-driver-linux" ]

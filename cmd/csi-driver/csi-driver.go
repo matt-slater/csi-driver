@@ -21,13 +21,17 @@ type envConfig struct {
 }
 
 var version string
+var commit string
 
 func main() {
 	logger := zap.Must(zap.NewProduction(zap.Fields(zap.String("component", "csi-driver"))))
 	defer logger.Sync()
 	sugar := logger.Sugar()
 
-	sugar.Info("starting up...")
+	sugar.Infow("starting up...",
+		"commit", commit,
+		"version", version,
+	)
 
 	envVars := &envConfig{}
 
