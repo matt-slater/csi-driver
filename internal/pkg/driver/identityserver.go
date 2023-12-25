@@ -1,3 +1,4 @@
+// Package driver contains structs and methods to implement the CSI spec.
 package driver
 
 import (
@@ -8,12 +9,17 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// IdentityServer implements csi.IdentityServer.
 type IdentityServer struct {
 	Name    string
 	Version string
 }
 
-func (is *IdentityServer) GetPluginInfo(context.Context, *csi.GetPluginInfoRequest) (*csi.GetPluginInfoResponse, error) {
+// GetPluginInfo implements csi.IdentityServer.GetPluginInfo.
+func (is *IdentityServer) GetPluginInfo(
+	_ context.Context,
+	_ *csi.GetPluginInfoRequest,
+) (*csi.GetPluginInfoResponse, error) {
 	if is.Name == "" {
 		return nil, status.Error(codes.Unavailable, "driver name not configured")
 	}
@@ -28,7 +34,11 @@ func (is *IdentityServer) GetPluginInfo(context.Context, *csi.GetPluginInfoReque
 	}, nil
 }
 
-func (is *IdentityServer) GetPluginCapabilities(context.Context, *csi.GetPluginCapabilitiesRequest) (*csi.GetPluginCapabilitiesResponse, error) {
+// GetPluginCapabilities implements csi.IdentityServer.GetPluginCapabilities.
+func (is *IdentityServer) GetPluginCapabilities(
+	_ context.Context,
+	_ *csi.GetPluginCapabilitiesRequest,
+) (*csi.GetPluginCapabilitiesResponse, error) {
 	return &csi.GetPluginCapabilitiesResponse{
 		Capabilities: []*csi.PluginCapability{
 			{
@@ -42,6 +52,7 @@ func (is *IdentityServer) GetPluginCapabilities(context.Context, *csi.GetPluginC
 	}, nil
 }
 
+// Probe implements csi.IdentityServer.Probe.
 func (is *IdentityServer) Probe(context.Context, *csi.ProbeRequest) (*csi.ProbeResponse, error) {
 	return &csi.ProbeResponse{}, nil
 }

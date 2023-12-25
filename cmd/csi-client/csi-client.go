@@ -1,3 +1,4 @@
+// Package main is the entrypoint for the csi-client.
 package main
 
 import (
@@ -10,7 +11,10 @@ import (
 )
 
 func main() {
-	conn, err := grpc.Dial("unix:///Users/wave/go/src/csi-driver/csi.sock", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(
+		"unix:///Users/wave/go/src/csi-driver/csi.sock",
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
 	if err != nil {
 		fmt.Printf("could not dial unix sock: %s\n", err)
 	}
@@ -21,5 +25,4 @@ func main() {
 	}
 
 	fmt.Printf("response: %v\n", resp)
-
 }

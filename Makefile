@@ -1,4 +1,4 @@
-.PHONY: version build
+.PHONY: version build lint fmt
 
 project=csi-driver
 version=$(shell cat VERSION)
@@ -9,6 +9,12 @@ imageName=mattslater/${project}-linux:${version}
 
 version:
 	@echo ${version}
+
+lint:
+	golangci-lint run ./...
+
+fmt:
+	gofumpt -l -w .
 
 build:
 	GOOS=darwin GOARCH=arm64 go build ${ldFlags} -o build/package/${project}/${project}-darwin cmd/${project}/${project}.go

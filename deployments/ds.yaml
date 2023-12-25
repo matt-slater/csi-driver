@@ -1,0 +1,55 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    app: csi-driver
+  name: csi-driver
+spec:
+  selector:
+    matchLabels:
+      app: csi-driver
+  template:
+    metadata:
+      labels:
+        app: csi-driver
+    spec:
+      containers:
+      - name: csi-driver-registrar
+        image: k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.5.0
+        args:
+        - "--csi-address=/csi/csi.sock"
+        - "--kubelet-registration-path=/var/lib/kubelet/plugins/csi-driver.mattslater.io/csi.sock"
+        - "--health-port=9809"
+        volumeMounts:
+        - name: plugin-dir
+          mountPath: /csi
+        - name: registration-dir
+          mountPath: /registration
+        ports:
+        - containerPort: 9809
+          name: healthz
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: healthz
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
+      - name: csi-driver
+        image: mattslater/csi-driver:v0.0.2
+        env:
+        - name: NODE_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: CSI_SOCKET_PATH
+          value: /var/lib/kubelet/plugins/csi-driver.mattslater.io/csi.sock
+      volumes:
+      - name: registration-dir
+        hostPath:
+          path: /var/lib/kubelet/plugins_registry/
+          type: Directory
+      - name: plugin-dir
+        hostPath:
+          path: /var/lib/kubelet/plugins/csi-driver.mattslater.io/
+          type: DirectoryOrCreate

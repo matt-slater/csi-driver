@@ -1,3 +1,4 @@
+// Package main is the entrypoint for the csi-driver binary.
 package main
 
 import (
@@ -20,12 +21,14 @@ type envConfig struct {
 	CSISocketPath string `env:"CSI_SOCKET_PATH"`
 }
 
-var version string
-var commit string
+var (
+	version string
+	commit  string
+)
 
-func main() {
+func run() int {
 	logger := zap.Must(zap.NewProduction(zap.Fields(zap.String("component", "csi-driver"))))
-	defer logger.Sync()
+	defer logger.Sync() //nolint:errcheck
 	sugar := logger.Sugar()
 
 	sugar.Infow("starting up...",
@@ -71,7 +74,13 @@ func main() {
 	select {
 	case err := <-errChan:
 		sugar.Errorw("caught error", err)
+		return 1
 	case <-stopChan:
 		sugar.Info("caught os signal. shutting down")
 	}
+	return 0
+}
+
+func main() {
+	os.Exit(run())
 }
