@@ -32,7 +32,7 @@ spec:
             exec:
               command:
                 - /csi-node-driver-registrar
-                - --kubelet-registration-path=/var/lib/kubelet/plugins/<drivername.example.com>/csi.sock
+                - --kubelet-registration-path=/var/lib/kubelet/plugins/csi-driver.mattslater.io/csi.sock
                 - --mode=kubelet-registration-probe
             initialDelaySeconds: 30
             timeoutSeconds: 15
@@ -42,12 +42,15 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: mattslater/csi-driver-linux:v0.0.7
+          image: mattslater/csi-driver-linux:v0.0.12
           volumeMounts:
             - name: plugin-dir
               mountPath: /csi
             - name: pod-mount-dir
               mountPath: /var/lib/kubelet/pods
+              mountPropagation: Bidirectional
+            - name: storage-dir
+              mountPath: /storage-dir
               mountPropagation: Bidirectional
           env:
             - name: NODE_ID
@@ -69,3 +72,7 @@ spec:
           hostPath:
             path: /var/lib/kubelet/pods
             type: Directory
+        - name: storage-dir
+          hostPath:
+            path: /tmp/csi-driver.mattslater.io
+            type: DirectoryOrCreate

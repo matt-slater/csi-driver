@@ -2,9 +2,9 @@
 package storage
 
 type Storage interface {
-	WriteVolume(id, targetPath string, vCtx map[string]string, data []byte) error
+	WriteVolume(id, targetPath string, vCtx map[string]string) (bool, error)
 	PathForVolume(id string) string
-	ListVolumes() []string
+	ListVolumes() ([]string, error)
 	RemoveVolume(id string) error
 }
 

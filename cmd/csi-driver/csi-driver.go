@@ -2,12 +2,13 @@
 package main
 
 import (
-	"csi-driver/internal/pkg/driver"
-	"csi-driver/internal/pkg/server"
-	"csi-driver/internal/pkg/storage"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"csi-driver/internal/pkg/driver"
+	"csi-driver/internal/pkg/server"
+	"csi-driver/internal/pkg/storage"
 
 	"github.com/caarlos0/env/v10"
 	"go.uber.org/zap"
@@ -46,6 +47,15 @@ func run() int {
 		sugar.Fatal("failed to parse env vars", err)
 	}
 
+	storageBackend, err := storage.NewFilesystem(
+		logger.With(zap.String("subsystem", "fs storage backend")),
+		"/storage-dir",
+		os.DirFS("/"),
+	)
+	if err != nil {
+		sugar.Fatal("failed to create storage backend", err)
+	}
+
 	grpcServer, err := server.NewExtendedGRPCServer(
 		unixDomain,
 		envVars.CSISocketPath,
@@ -57,12 +67,12 @@ func run() int {
 			NodeID:         envVars.NodeID,
 			Logger:         logger,
 			Mounter:        mount.New(""),
-			StorageBackend: storage.NewInMemory(),
+			StorageBackend: storageBackend,
 		},
 		logger,
 	)
 	if err != nil {
-		sugar.Fatal("fsiled to create grpcServer", err)
+		sugar.Fatal("failed to create grpcServer", err)
 	}
 
 	errChan := make(chan error)

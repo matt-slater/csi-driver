@@ -2,9 +2,10 @@ package driver
 
 import (
 	"context"
-	"csi-driver/internal/pkg/storage"
 	"fmt"
 	"os"
+
+	"csi-driver/internal/pkg/storage"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"go.uber.org/zap"
@@ -61,11 +62,11 @@ func (ns *NodeServer) NodePublishVolume(
 	volumeLogger := ns.Logger.With(
 		zap.String("target path", targetPath),
 		zap.String("volume ID", volumeID),
-		zap.Any("colume context", vCtx),
+		zap.Any("volume context", vCtx),
 		zap.String("pod name", vCtx["csi.storage.k8s.io/pod.name"]),
 	)
 
-	err := ns.StorageBackend.WriteVolume(volumeID, targetPath, vCtx, []byte(vCtx["csi-driver.mattslater.io/data"]))
+	_, err := ns.StorageBackend.WriteVolume(volumeID, targetPath, vCtx)
 	if err != nil {
 		return nil, fmt.Errorf("unexpected error writing to storage backend: %w", err)
 	}
@@ -77,7 +78,7 @@ func (ns *NodeServer) NodePublishVolume(
 	isMountPoint, err := ns.Mounter.IsMountPoint(targetPath)
 	switch {
 	case os.IsNotExist(err):
-		if err := os.MkdirAll(req.GetTargetPath(), 0440); err != nil {
+		if err := os.MkdirAll(req.GetTargetPath(), 0o440); err != nil {
 			return nil, err
 		}
 		isMountPoint = false
@@ -108,8 +109,34 @@ func (ns *NodeServer) NodePublishVolume(
 // Unpublishes volume.
 func (ns *NodeServer) NodeUnpublishVolume(
 	_ context.Context,
-	_ *csi.NodeUnpublishVolumeRequest,
+	req *csi.NodeUnpublishVolumeRequest,
 ) (*csi.NodeUnpublishVolumeResponse, error) {
+	volumeLogger := ns.Logger.With(
+		zap.String("target path", req.GetTargetPath()),
+		zap.String("volume ID", req.GetVolumeId()),
+	)
+	// check to see if volume is mounted
+	isMounted, err := ns.Mounter.IsMountPoint(req.GetTargetPath())
+	if err != nil {
+		return nil, fmt.Errorf("failed to determine if target path is mount point: %w", err)
+	}
+
+	if isMounted {
+		err := ns.Mounter.Unmount(req.GetTargetPath())
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmount volume: %w", err)
+		}
+
+		volumeLogger.Info("unmounted volume")
+	}
+
+	err = ns.StorageBackend.RemoveVolume(req.GetVolumeId())
+	if err != nil {
+		return nil, fmt.Errorf("failed to remove directories: %w", err)
+	}
+
+	volumeLogger.Info("removed directories")
+
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 

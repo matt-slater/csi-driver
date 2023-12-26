@@ -16,7 +16,7 @@ func NewInMemory() *InMemory {
 	}
 }
 
-func (m *InMemory) WriteVolume(id, targetPath string, vCtx map[string]string, data []byte) error {
+func (m *InMemory) WriteVolume(id, targetPath string, vCtx map[string]string) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	m.files[id] = Volume{
@@ -25,7 +25,6 @@ func (m *InMemory) WriteVolume(id, targetPath string, vCtx map[string]string, da
 			TargetPath:    targetPath,
 			VolumeContext: vCtx,
 		},
-		Data: data,
 	}
 	return nil
 }
@@ -51,7 +50,7 @@ func (m *InMemory) ReadFile(id string) ([]byte, error) {
 	return cpy, nil
 }
 
-func (m *InMemory) ListVolumes() []string {
+func (m *InMemory) ListVolumes() ([]string, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	vols := make([]string, len(m.files))
@@ -62,7 +61,7 @@ func (m *InMemory) ListVolumes() []string {
 		i++
 	}
 
-	return vols
+	return vols, nil
 }
 
 func (m *InMemory) RemoveVolume(id string) error {
