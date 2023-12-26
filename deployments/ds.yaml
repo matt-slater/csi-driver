@@ -1,4 +1,3 @@
----
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -15,41 +14,58 @@ spec:
         app: csi-driver
     spec:
       containers:
-      - name: csi-driver-registrar
-        image: k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.5.0
-        args:
-        - "--csi-address=/csi/csi.sock"
-        - "--kubelet-registration-path=/var/lib/kubelet/plugins/csi-driver.mattslater.io/csi.sock"
-        - "--health-port=9809"
-        volumeMounts:
-        - name: plugin-dir
-          mountPath: /csi
-        - name: registration-dir
-          mountPath: /registration
-        ports:
-        - containerPort: 9809
-          name: healthz
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: healthz
-          initialDelaySeconds: 5
-          timeoutSeconds: 5
-      - name: csi-driver
-        image: mattslater/csi-driver:v0.0.2
-        env:
-        - name: NODE_ID
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
-        - name: CSI_SOCKET_PATH
-          value: /var/lib/kubelet/plugins/csi-driver.mattslater.io/csi.sock
+        - name: csi-driver-registrar
+          image: k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.5.0
+          args:
+            - "--v=5"
+            - "--csi-address=/csi/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/plugins/csi-driver.mattslater.io/csi.sock"
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+            - name: registration-dir
+              mountPath: /registration
+          ports:
+            - containerPort: 8080
+              name: healthz
+          livenessProbe:
+            exec:
+              command:
+                - /csi-node-driver-registrar
+                - --kubelet-registration-path=/var/lib/kubelet/plugins/<drivername.example.com>/csi.sock
+                - --mode=kubelet-registration-probe
+            initialDelaySeconds: 30
+            timeoutSeconds: 15
+        - name: csi-driver
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true
+          image: mattslater/csi-driver-linux:v0.0.7
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+            - name: pod-mount-dir
+              mountPath: /var/lib/kubelet/pods
+              mountPropagation: Bidirectional
+          env:
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: CSI_SOCKET_PATH
+              value: /csi/csi.sock
       volumes:
-      - name: registration-dir
-        hostPath:
-          path: /var/lib/kubelet/plugins_registry/
-          type: Directory
-      - name: plugin-dir
-        hostPath:
-          path: /var/lib/kubelet/plugins/csi-driver.mattslater.io/
-          type: DirectoryOrCreate
+        - name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry/
+            type: Directory
+        - name: plugin-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/csi-driver.mattslater.io/
+            type: DirectoryOrCreate
+        - name: pod-mount-dir
+          hostPath:
+            path: /var/lib/kubelet/pods
+            type: Directory

@@ -4,16 +4,19 @@ package main
 import (
 	"csi-driver/internal/pkg/driver"
 	"csi-driver/internal/pkg/server"
+	"csi-driver/internal/pkg/storage"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/caarlos0/env/v10"
 	"go.uber.org/zap"
+	"k8s.io/mount-utils"
 )
 
 const (
 	unixDomain = "unix"
+	name       = "csi-driver.mattslater.io"
 )
 
 type envConfig struct {
@@ -46,8 +49,16 @@ func run() int {
 	grpcServer, err := server.NewExtendedGRPCServer(
 		unixDomain,
 		envVars.CSISocketPath,
-		&driver.IdentityServer{},
-		&driver.NodeServer{NodeID: envVars.NodeID},
+		&driver.IdentityServer{
+			Name:    name,
+			Version: version,
+		},
+		&driver.NodeServer{
+			NodeID:         envVars.NodeID,
+			Logger:         logger,
+			Mounter:        mount.New(""),
+			StorageBackend: storage.NewInMemory(),
+		},
 		logger,
 	)
 	if err != nil {

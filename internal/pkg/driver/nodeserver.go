@@ -2,8 +2,12 @@ package driver
 
 import (
 	"context"
+	"csi-driver/internal/pkg/storage"
+	"fmt"
+	"os"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/mount-utils"
@@ -11,8 +15,10 @@ import (
 
 // NodeServer implements csi.NodeServer interface.
 type NodeServer struct {
-	NodeID  string
-	Mounter mount.Interface
+	Logger         *zap.Logger
+	NodeID         string
+	Mounter        mount.Interface
+	StorageBackend storage.Storage
 }
 
 // NodeStageVolume implements the csi.NodeServer interface.
@@ -37,9 +43,65 @@ func (ns *NodeServer) NodeUnstageVolume(
 // Publishes volume.
 func (ns *NodeServer) NodePublishVolume(
 	_ context.Context,
-	_ *csi.NodePublishVolumeRequest,
+	req *csi.NodePublishVolumeRequest,
 ) (*csi.NodePublishVolumeResponse, error) {
-	panic("not implemented") // TODO: Implement
+	targetPath := req.GetTargetPath()
+	vCtx := req.GetVolumeContext()
+	volumeID := req.GetVolumeId()
+
+	success := false
+
+	defer func() {
+		if !success {
+			_ = ns.Mounter.Unmount(targetPath)
+			_ = ns.StorageBackend.RemoveVolume(volumeID)
+		}
+	}()
+
+	volumeLogger := ns.Logger.With(
+		zap.String("target path", targetPath),
+		zap.String("volume ID", volumeID),
+		zap.Any("colume context", vCtx),
+		zap.String("pod name", vCtx["csi.storage.k8s.io/pod.name"]),
+	)
+
+	err := ns.StorageBackend.WriteVolume(volumeID, targetPath, vCtx, []byte(vCtx["csi-driver.mattslater.io/data"]))
+	if err != nil {
+		return nil, fmt.Errorf("unexpected error writing to storage backend: %w", err)
+	}
+
+	volumeLogger.Info("successfully sotred volume in backend")
+
+	volumeLogger.Info("ensuring volume is mounted to pod")
+
+	isMountPoint, err := ns.Mounter.IsMountPoint(targetPath)
+	switch {
+	case os.IsNotExist(err):
+		if err := os.MkdirAll(req.GetTargetPath(), 0440); err != nil {
+			return nil, err
+		}
+		isMountPoint = false
+	case err != nil:
+		return nil, fmt.Errorf("unexpected error checking mount point: %w", err)
+	}
+
+	if isMountPoint {
+		volumeLogger.Info("volume is already mounted to pod, nothing to do")
+		success = true
+		return &csi.NodePublishVolumeResponse{}, nil
+	}
+
+	volumeLogger.Info("bind mounting data directory to the pod's mount namespace")
+
+	err = ns.Mounter.Mount(ns.StorageBackend.PathForVolume(volumeID), targetPath, "", []string{"bind", "ro"})
+	if err != nil {
+		return nil, fmt.Errorf("error mounting volume to pod %w", err)
+	}
+
+	volumeLogger.Info("successfully mounted volume to pod")
+	success = true
+
+	return &csi.NodePublishVolumeResponse{}, nil
 }
 
 // NodeUnpublishVolume implements the csi.NodeServer interface.
@@ -48,7 +110,7 @@ func (ns *NodeServer) NodeUnpublishVolume(
 	_ context.Context,
 	_ *csi.NodeUnpublishVolumeRequest,
 ) (*csi.NodeUnpublishVolumeResponse, error) {
-	panic("not implemented") // TODO: Implement
+	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
 // NodeGetVolumeStats implements the csi.NodeServer interface.
