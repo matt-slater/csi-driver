@@ -7,14 +7,3 @@ type Storage interface {
 	ListVolumes() ([]string, error)
 	RemoveVolume(id string) error
 }
-
-type Volume struct {
-	Metadata VolumeMetadata
-	Data     []byte
-}
-
-type VolumeMetadata struct {
-	ID            string
-	TargetPath    string
-	VolumeContext map[string]string
-}
