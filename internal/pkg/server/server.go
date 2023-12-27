@@ -23,8 +23,8 @@ type ExtendedGRPCServer struct {
 // NewExtendedGRPCServer returns a configured ExtendedGRPCServer.
 func NewExtendedGRPCServer(
 	protocol, endpoint string,
-	is csi.IdentityServer,
-	ns csi.NodeServer,
+	identityServer csi.IdentityServer,
+	nodeServer csi.NodeServer,
 	logger *zap.Logger,
 ) (*ExtendedGRPCServer, error) {
 	err := os.Remove(endpoint)
@@ -43,12 +43,12 @@ func NewExtendedGRPCServer(
 
 	server := grpc.NewServer(opts...)
 
-	if is != nil {
-		csi.RegisterIdentityServer(server, is)
+	if identityServer != nil {
+		csi.RegisterIdentityServer(server, identityServer)
 	}
 
-	if ns != nil {
-		csi.RegisterNodeServer(server, ns)
+	if nodeServer != nil {
+		csi.RegisterNodeServer(server, nodeServer)
 	}
 
 	return &ExtendedGRPCServer{
@@ -58,9 +58,14 @@ func NewExtendedGRPCServer(
 	}, nil
 }
 
-// Run runs the ExtendedGRPCServer
+// Run runs the ExtendedGRPCServer.
 func (gs *ExtendedGRPCServer) Run() error {
-	return gs.server.Serve(gs.listener)
+	err := gs.server.Serve(gs.listener)
+	if err != nil {
+		return fmt.Errorf("failed to start gRPC server: %w", err)
+	}
+
+	return nil
 }
 
 // GracefulStop shuts down the server gracefully.
@@ -84,6 +89,7 @@ func loggingInterceptor(logger *zap.Logger) grpc.UnaryServerInterceptor {
 			zap.String("rpc_method", info.FullMethod),
 			zap.Any("request", protosanitizer.StripSecrets(req)),
 		)
+
 		resp, err := handler(ctx, req)
 		if err != nil {
 			logger.Error("failed processing request", zap.Error(err))
@@ -92,6 +98,7 @@ func loggingInterceptor(logger *zap.Logger) grpc.UnaryServerInterceptor {
 				zap.Any("response", protosanitizer.StripSecrets(resp)),
 			)
 		}
+
 		return resp, err
 	}
 }

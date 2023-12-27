@@ -15,7 +15,7 @@ lint:
 	golangci-lint run ./...
 
 fmt:
-	gofumpt -l -w .
+	gofmt -l -w .
 
 build:
 	GOOS=darwin GOARCH=arm64 go build ${buildFlags} -o build/package/${project}/${project}-darwin cmd/${project}/${project}.go

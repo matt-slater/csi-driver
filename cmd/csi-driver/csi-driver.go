@@ -40,7 +40,7 @@ func run() int {
 		"version", version,
 	)
 
-	envVars := &envConfig{}
+	envVars := &envConfig{} //nolint:exhaustivestruct,exhaustruct
 
 	err := env.Parse(envVars)
 	if err != nil {
@@ -94,11 +94,13 @@ func run() int {
 
 	select {
 	case err := <-errChan:
-		sugar.Errorw("caught error", err)
+		sugar.Errorw("caught error", "error", err)
+
 		return 1
 	case <-stopChan:
 		sugar.Info("caught os signal. shutting down")
 	}
+
 	return 0
 }
 

@@ -3,6 +3,7 @@ package driver
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
@@ -21,11 +22,15 @@ func (is *IdentityServer) GetPluginInfo(
 	_ *csi.GetPluginInfoRequest,
 ) (*csi.GetPluginInfoResponse, error) {
 	if is.Name == "" {
-		return nil, status.Error(codes.Unavailable, "driver name not configured")
+		return nil, fmt.Errorf("unexpected nil plugin name: %w",
+			status.Error(codes.Unavailable, "driver name not configured"),
+		)
 	}
 
 	if is.Version == "" {
-		return nil, status.Error(codes.Unavailable, "driver is missing version")
+		return nil, fmt.Errorf("unexpected nil plugin version: %w",
+			status.Error(codes.Unavailable, "driver name not configured"),
+		)
 	}
 
 	return &csi.GetPluginInfoResponse{
@@ -42,6 +47,7 @@ func (is *IdentityServer) GetPluginCapabilities(
 	return &csi.GetPluginCapabilitiesResponse{
 		Capabilities: []*csi.PluginCapability{
 			{
+				//nolint:nosnakecase // library code
 				Type: &csi.PluginCapability_Service_{
 					Service: &csi.PluginCapability_Service{
 						Type: csi.PluginCapability_Service_CONTROLLER_SERVICE,

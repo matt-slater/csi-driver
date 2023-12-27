@@ -1,0 +1,12 @@
+linters:
+  enable-all: true
+  disable:
+    - funlen
+    - gochecknoglobals
+    - depguard
+    - ifshort
+    - gofumpt
+    - gci
+    - exhaustivestruct
+    - exhaustruct
+    - prealloc

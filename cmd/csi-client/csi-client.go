@@ -18,7 +18,9 @@ func main() {
 	if err != nil {
 		fmt.Printf("could not dial unix sock: %s\n", err)
 	}
+
 	nodeClient := csi.NewNodeClient(conn)
+
 	resp, err := nodeClient.NodeGetInfo(context.TODO(), &csi.NodeGetInfoRequest{})
 	if err != nil {
 		fmt.Printf("could not get node info response: %s\n", err)

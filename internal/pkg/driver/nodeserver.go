@@ -14,6 +14,10 @@ import (
 	"k8s.io/mount-utils"
 )
 
+const (
+	roPerms = 0o440
+)
+
 // NodeServer implements csi.NodeServer interface.
 type NodeServer struct {
 	Logger         *zap.Logger
@@ -28,7 +32,9 @@ func (ns *NodeServer) NodeStageVolume(
 	_ context.Context,
 	_ *csi.NodeStageVolumeRequest,
 ) (*csi.NodeStageVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "NodeStageVolume not implemented")
+	return nil, fmt.Errorf("failed NodeStageVolume: %w",
+		status.Error(codes.Unimplemented, "NodeStageVolume not implemented"),
+	)
 }
 
 // NodeUnstageVolume implements the csi.NodeServer interface.
@@ -37,7 +43,9 @@ func (ns *NodeServer) NodeUnstageVolume(
 	_ context.Context,
 	_ *csi.NodeUnstageVolumeRequest,
 ) (*csi.NodeUnstageVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "NodeUnstageVolume not implemented")
+	return nil, fmt.Errorf("failed NodeUnstageVolume: %w",
+		status.Error(codes.Unimplemented, "NodeUnstageVolume not implemented"),
+	)
 }
 
 // NodePublishVolume implements the csi.NodeServer interface.
@@ -76,11 +84,14 @@ func (ns *NodeServer) NodePublishVolume(
 	volumeLogger.Info("ensuring volume is mounted to pod")
 
 	isMountPoint, err := ns.Mounter.IsMountPoint(targetPath)
+
 	switch {
 	case os.IsNotExist(err):
-		if err := os.MkdirAll(req.GetTargetPath(), 0o440); err != nil {
-			return nil, err
+		err := os.MkdirAll(req.GetTargetPath(), roPerms)
+		if err != nil {
+			return nil, fmt.Errorf("failed to make directories: %w", err)
 		}
+
 		isMountPoint = false
 	case err != nil:
 		return nil, fmt.Errorf("unexpected error checking mount point: %w", err)
@@ -88,7 +99,9 @@ func (ns *NodeServer) NodePublishVolume(
 
 	if isMountPoint {
 		volumeLogger.Info("volume is already mounted to pod, nothing to do")
+
 		success = true
+
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
@@ -100,6 +113,7 @@ func (ns *NodeServer) NodePublishVolume(
 	}
 
 	volumeLogger.Info("successfully mounted volume to pod")
+
 	success = true
 
 	return &csi.NodePublishVolumeResponse{}, nil
@@ -146,7 +160,9 @@ func (ns *NodeServer) NodeGetVolumeStats(
 	_ context.Context,
 	_ *csi.NodeGetVolumeStatsRequest,
 ) (*csi.NodeGetVolumeStatsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "NodeGetVolumeStats not implemented")
+	return nil, fmt.Errorf("failed NodeGetVolumeStats: %w",
+		status.Error(codes.Unimplemented, "NodeGetVolumeStats not implemented"),
+	)
 }
 
 // NodeExpandVolume implements the csi.NodeServer interface.
@@ -155,7 +171,9 @@ func (ns *NodeServer) NodeExpandVolume(
 	_ context.Context,
 	_ *csi.NodeExpandVolumeRequest,
 ) (*csi.NodeExpandVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "NodeExpandVolume not implemented")
+	return nil, fmt.Errorf("failed NodeExpandVolume: %w",
+		status.Error(codes.Unimplemented, "NodeExpandVolume not implemented"),
+	)
 }
 
 // NodeGetCapabilities implements the csi.NodeServer interface.
@@ -167,6 +185,7 @@ func (ns *NodeServer) NodeGetCapabilities(
 	return &csi.NodeGetCapabilitiesResponse{
 		Capabilities: []*csi.NodeServiceCapability{
 			{
+				//nolint:nosnakecase // library code.
 				Type: &csi.NodeServiceCapability_Rpc{
 					Rpc: &csi.NodeServiceCapability_RPC{
 						Type: csi.NodeServiceCapability_RPC_UNKNOWN,

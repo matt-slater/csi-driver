@@ -19,6 +19,10 @@ type Filesystem struct {
 	tempfsPath    string
 }
 
+const (
+	rwePerms = 0o700
+)
+
 func NewFilesystem(logger *zap.Logger, baseDirectory string, rootFS fs.FS) (*Filesystem, error) {
 	tempfsPath := filepath.Join(baseDirectory, "inmemfs")
 
@@ -38,7 +42,7 @@ func NewFilesystem(logger *zap.Logger, baseDirectory string, rootFS fs.FS) (*Fil
 			return nil, fmt.Errorf("unexpected error checking mount point: %w", err)
 		}
 
-		err := os.MkdirAll(filesystem.tempfsPath, 0o700)
+		err := os.MkdirAll(filesystem.tempfsPath, rwePerms)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create tempfs directories: %w", err)
 		}
@@ -61,7 +65,7 @@ func NewFilesystem(logger *zap.Logger, baseDirectory string, rootFS fs.FS) (*Fil
 func (f *Filesystem) WriteVolume(id string, _ string, vCtx map[string]string) (bool, error) {
 	datapath := filepath.Join(f.tempfsPath, id, "data")
 	// check if volume already exists
-	err := os.MkdirAll(datapath, 0o700)
+	err := os.MkdirAll(datapath, rwePerms)
 	if err != nil {
 		if !errors.Is(err, os.ErrExist) {
 			return false, fmt.Errorf("unexpected error creating data dir: %w", err)
