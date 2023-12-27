@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"os"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
@@ -22,21 +21,11 @@ type ExtendedGRPCServer struct {
 
 // NewExtendedGRPCServer returns a configured ExtendedGRPCServer.
 func NewExtendedGRPCServer(
-	protocol, endpoint string,
+	listener net.Listener,
 	identityServer csi.IdentityServer,
 	nodeServer csi.NodeServer,
 	logger *zap.Logger,
-) (*ExtendedGRPCServer, error) {
-	err := os.Remove(endpoint)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("failed to remove unix socket file: %w", err)
-	}
-
-	listener, err := net.Listen(protocol, endpoint)
-	if err != nil {
-		return nil, fmt.Errorf("failed to listen: %w", err)
-	}
-
+) *ExtendedGRPCServer {
 	opts := []grpc.ServerOption{
 		grpc.UnaryInterceptor(loggingInterceptor(logger)),
 	}
@@ -55,7 +44,7 @@ func NewExtendedGRPCServer(
 		server:   server,
 		logger:   logger,
 		listener: listener,
-	}, nil
+	}
 }
 
 // Run runs the ExtendedGRPCServer.

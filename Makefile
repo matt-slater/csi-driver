@@ -17,6 +17,9 @@ lint:
 fmt:
 	gofmt -l -w .
 
+test:
+	go test -cover -coverprofile=c.out ./...
+
 build:
 	GOOS=darwin GOARCH=arm64 go build ${buildFlags} -o build/package/${project}/${project}-darwin cmd/${project}/${project}.go
 	GOOS=linux GOARCH=amd64 go build ${buildFlags} -o build/package/${project}/${project}-linux cmd/${project}/${project}.go

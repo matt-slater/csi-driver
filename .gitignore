@@ -2,3 +2,4 @@
 build/package/csi-driver
 build/package/csi-driver-linux
 build/package/csi-driver-darwin
+c.out

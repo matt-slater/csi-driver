@@ -2,6 +2,8 @@
 package main
 
 import (
+	"fmt"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -30,7 +32,7 @@ var (
 	commit  string
 )
 
-func run() int {
+func run() error {
 	logger := zap.Must(zap.NewProduction(zap.Fields(zap.String("component", "csi-driver"))))
 	defer logger.Sync() //nolint:errcheck
 	sugar := logger.Sugar()
@@ -51,14 +53,24 @@ func run() int {
 		logger.With(zap.String("subsystem", "fs storage backend")),
 		"/storage-dir",
 		os.DirFS("/"),
+		mount.New(""),
 	)
 	if err != nil {
 		sugar.Fatal("failed to create storage backend", err)
 	}
 
-	grpcServer, err := server.NewExtendedGRPCServer(
-		unixDomain,
-		envVars.CSISocketPath,
+	err = os.Remove(envVars.CSISocketPath)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to remove unix socket file: %w", err)
+	}
+
+	listener, err := net.Listen(unixDomain, envVars.CSISocketPath)
+	if err != nil {
+		return fmt.Errorf("failed to listen: %w", err)
+	}
+
+	grpcServer := server.NewExtendedGRPCServer(
+		listener,
 		&driver.IdentityServer{
 			Name:    name,
 			Version: version,
@@ -71,9 +83,6 @@ func run() int {
 		},
 		logger,
 	)
-	if err != nil {
-		sugar.Fatal("failed to create grpcServer", err)
-	}
 
 	errChan := make(chan error)
 	stopChan := make(chan os.Signal, 1)
@@ -96,14 +105,17 @@ func run() int {
 	case err := <-errChan:
 		sugar.Errorw("caught error", "error", err)
 
-		return 1
+		return err
 	case <-stopChan:
 		sugar.Info("caught os signal. shutting down")
 	}
 
-	return 0
+	return nil
 }
 
 func main() {
-	os.Exit(run())
+	err := run()
+	if err != nil {
+		os.Exit(1)
+	}
 }

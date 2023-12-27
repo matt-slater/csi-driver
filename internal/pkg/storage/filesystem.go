@@ -23,14 +23,14 @@ const (
 	rwePerms = 0o700
 )
 
-func NewFilesystem(logger *zap.Logger, baseDirectory string, rootFS fs.FS) (*Filesystem, error) {
+func NewFilesystem(logger *zap.Logger, baseDirectory string, rootFS fs.FS, mounter mount.Interface) (*Filesystem, error) {
 	tempfsPath := filepath.Join(baseDirectory, "inmemfs")
 
 	filesystem := &Filesystem{
 		logger:        logger,
 		baseDirectory: baseDirectory,
 		storage:       rootFS,
-		mounter:       mount.New(""),
+		mounter:       mounter,
 		tempfsPath:    tempfsPath,
 	}
 
