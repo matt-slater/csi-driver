@@ -10,29 +10,31 @@ type MockStorage struct {
 	Volumes   []string
 }
 
-func (ms *MockStorage) WriteVolume(id string, vCtx map[string]string) (bool, error) {
+var errMock = errors.New("mock error")
+
+func (ms *MockStorage) WriteVolume(_ string, _ map[string]string) (bool, error) {
 	if ms.ShouldErr {
-		return false, errors.New("error writing volume")
+		return false, errMock
 	}
 
 	return true, nil
 }
 
-func (ms *MockStorage) PathForVolume(id string) string {
+func (ms *MockStorage) PathForVolume(_ string) string {
 	return ms.Path
 }
 
 func (ms *MockStorage) ListVolumes() ([]string, error) {
 	if ms.ShouldErr {
-		return nil, errors.New("error getting volumes")
+		return nil, errMock
 	}
 
 	return ms.Volumes, nil
 }
 
-func (ms *MockStorage) RemoveVolume(id string) error {
+func (ms *MockStorage) RemoveVolume(_ string) error {
 	if ms.ShouldErr {
-		return errors.New("error removing volumes")
+		return errMock
 	}
 
 	return nil

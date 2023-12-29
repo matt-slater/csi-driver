@@ -4,6 +4,7 @@ import (
 	"csi-driver/internal/pkg/storage"
 	"io/fs"
 	"os"
+	"strings"
 	"testing"
 	"testing/fstest"
 
@@ -120,5 +121,87 @@ func TestFilesystem_WriteVolume(t *testing.T) {
 				t.Errorf("Filesystem.WriteVolume() = %v, want %v", got, testCase.want)
 			}
 		})
+	}
+}
+
+func TestFilesystem_ListVolumes(t *testing.T) {
+	t.Parallel()
+
+	tmpDir, err := os.MkdirTemp("", "list-volumes*")
+	if err != nil {
+		t.Fatalf("failed to create a temp dir: %v", err)
+	}
+
+	defer func() {
+		err := os.RemoveAll(tmpDir)
+		if err != nil {
+			t.Fatalf("failed to remove temp dir: %v", err)
+		}
+	}()
+
+	err = os.Mkdir(tmpDir+"/matt", 0644)
+	if err != nil {
+		t.Fatalf("failed to create dir in temp dir: %v", err)
+	}
+
+	trimmedDir := strings.TrimPrefix(tmpDir, "/")
+
+	file, err := storage.NewFilesystem(
+		zaptest.NewLogger(t),
+		trimmedDir,
+		os.DirFS("/"),
+		mount.NewFakeMounter([]mount.MountPoint{}),
+	)
+	if err != nil {
+		t.Fatalf("failed to create filesystem: %v", err)
+	}
+
+	vols, err := file.ListVolumes()
+	if err != nil {
+		t.Fatalf("failed to list volumes: %v", err)
+	}
+
+	if vols == nil {
+		t.Fatalf("unexpected nil volumes")
+	}
+
+	t.Logf("volumes: %s", vols)
+}
+
+func TestFilesystem_RemoveVolume(t *testing.T) {
+	t.Parallel()
+
+	tmpDir, err := os.MkdirTemp("", "list-volumes*")
+	if err != nil {
+		t.Fatalf("failed to create a temp dir: %v", err)
+	}
+
+	defer func() {
+		err := os.RemoveAll(tmpDir)
+		if err != nil {
+			t.Fatalf("failed to remove temp dir: %v", err)
+		}
+	}()
+
+	err = os.Mkdir(tmpDir+"/matt", 0644)
+	if err != nil {
+		t.Fatalf("failed to create dir in temp dir: %v", err)
+	}
+
+	trimmedDir := strings.TrimPrefix(tmpDir, "/")
+
+	file, err := storage.NewFilesystem(
+		zaptest.NewLogger(t),
+		trimmedDir,
+		os.DirFS("/"),
+		mount.NewFakeMounter([]mount.MountPoint{}),
+	)
+	if err != nil {
+		t.Fatalf("failed to create filesystem: %v", err)
+	}
+
+	err = file.RemoveVolume("matt")
+	if err != nil {
+		t.Fatalf("failed to remove volume: %v", err)
 	}
 }

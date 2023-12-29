@@ -12,11 +12,10 @@ import (
 )
 
 type Filesystem struct {
-	logger        *zap.Logger
-	baseDirectory string
-	storage       fs.FS
-	mounter       mount.Interface
-	tempfsPath    string
+	logger  *zap.Logger
+	storage fs.FS
+	mounter mount.Interface
+	baseDir string
 }
 
 const (
@@ -25,42 +24,37 @@ const (
 
 func NewFilesystem(
 	logger *zap.Logger,
-	baseDirectory string,
+	baseDir string,
 	rootFS fs.FS,
 	mounter mount.Interface,
 ) (*Filesystem, error) {
-	tempfsPath := filepath.Join(baseDirectory, "inmemfs")
-
 	filesystem := &Filesystem{
-		logger:        logger,
-		baseDirectory: baseDirectory,
-		storage:       rootFS,
-		mounter:       mounter,
-		tempfsPath:    tempfsPath,
+		logger:  logger,
+		storage: rootFS,
+		mounter: mounter,
+		baseDir: baseDir,
 	}
 
-	filesystem.tempfsPath = filesystem.baseDirectory
-
-	isMount, err := filesystem.mounter.IsMountPoint(filesystem.tempfsPath)
+	isMount, err := filesystem.mounter.IsMountPoint(filesystem.baseDir)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return nil, fmt.Errorf("unexpected error checking mount point: %w", err)
 		}
 
-		err := os.MkdirAll(filesystem.tempfsPath, rwePerms)
+		err := os.MkdirAll(filesystem.baseDir, rwePerms)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create tempfs directories: %w", err)
 		}
 	}
 
 	if !isMount {
-		err := filesystem.mounter.Mount("tempfs", filesystem.tempfsPath, "tmpfs", []string{})
+		err := filesystem.mounter.Mount("tempfs", filesystem.baseDir, "tmpfs", []string{})
 		if err != nil {
 			return nil, fmt.Errorf("failed to mount tmpfs: %w", err)
 		}
 
 		logger.Info("mounted new tmpfs",
-			zap.String("path", filesystem.tempfsPath),
+			zap.String("path", filesystem.baseDir),
 		)
 	}
 
@@ -68,7 +62,7 @@ func NewFilesystem(
 }
 
 func (f *Filesystem) WriteVolume(id string, vCtx map[string]string) (bool, error) {
-	datapath := filepath.Join(f.tempfsPath, id, "data")
+	datapath := filepath.Join(f.baseDir, id, "data")
 	// check if volume already exists
 	err := os.MkdirAll(datapath, rwePerms)
 	if err != nil {
@@ -102,11 +96,11 @@ func (f *Filesystem) WriteVolume(id string, vCtx map[string]string) (bool, error
 }
 
 func (f *Filesystem) PathForVolume(id string) string {
-	return filepath.Join(f.tempfsPath, id, "data")
+	return filepath.Join(f.baseDir, id, "data")
 }
 
 func (f *Filesystem) ListVolumes() ([]string, error) {
-	dirs, err := fs.ReadDir(f.storage, f.tempfsPath)
+	dirs, err := fs.ReadDir(f.storage, f.baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list volumes: %w", err)
 	}
@@ -121,7 +115,7 @@ func (f *Filesystem) ListVolumes() ([]string, error) {
 }
 
 func (f *Filesystem) RemoveVolume(id string) error {
-	err := os.RemoveAll(filepath.Join(f.tempfsPath, id))
+	err := os.RemoveAll(filepath.Join(f.baseDir, id))
 	if err != nil {
 		return fmt.Errorf("failed to remove volume: %w", err)
 	}

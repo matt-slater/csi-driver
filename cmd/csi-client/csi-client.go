@@ -3,28 +3,45 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"log"
 
+	"github.com/caarlos0/env/v10"
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+type envConfig struct {
+	SocketPath string `env:"SOCKET_PATH"`
+}
+
 func main() {
+	logger := zap.Must(zap.NewDevelopment())
+
+	envVars := &envConfig{}
+
+	err := env.Parse(envVars)
+	if err != nil {
+		log.Fatalf("failed to connect to parse env vars: %s", err)
+	}
+
 	conn, err := grpc.Dial(
-		"unix:///Users/wave/go/src/csi-driver/csi.sock",
+		envVars.SocketPath,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
-		fmt.Printf("could not dial unix sock: %s\n", err)
+		log.Fatalf("failed to connect to socket: %s", err)
 	}
 
 	nodeClient := csi.NewNodeClient(conn)
 
 	resp, err := nodeClient.NodeGetInfo(context.TODO(), &csi.NodeGetInfoRequest{})
 	if err != nil {
-		fmt.Printf("could not get node info response: %s\n", err)
+		log.Fatalf("could not get node info response: %s", err)
 	}
 
-	fmt.Printf("response: %v\n", resp)
+	logger.Info("successful request",
+		zap.Any("response", resp),
+	)
 }
