@@ -10,7 +10,7 @@ type MockStorage struct {
 	Volumes   []string
 }
 
-func (ms *MockStorage) WriteVolume(id string, targetPath string, vCtx map[string]string) (bool, error) {
+func (ms *MockStorage) WriteVolume(id string, vCtx map[string]string) (bool, error) {
 	if ms.ShouldErr {
 		return false, errors.New("error writing volume")
 	}

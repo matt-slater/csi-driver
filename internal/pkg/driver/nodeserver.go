@@ -67,21 +67,10 @@ func (ns *NodeServer) NodePublishVolume(
 		}
 	}()
 
-	volumeLogger := ns.Logger.With(
-		zap.String("target path", targetPath),
-		zap.String("volume ID", volumeID),
-		zap.Any("volume context", vCtx),
-		zap.String("pod name", vCtx["csi.storage.k8s.io/pod.name"]),
-	)
-
-	_, err := ns.StorageBackend.WriteVolume(volumeID, targetPath, vCtx)
+	_, err := ns.StorageBackend.WriteVolume(volumeID, vCtx)
 	if err != nil {
 		return nil, fmt.Errorf("unexpected error writing to storage backend: %w", err)
 	}
-
-	volumeLogger.Info("successfully sotred volume in backend")
-
-	volumeLogger.Info("ensuring volume is mounted to pod")
 
 	isMountPoint, err := ns.Mounter.IsMountPoint(targetPath)
 
@@ -98,21 +87,15 @@ func (ns *NodeServer) NodePublishVolume(
 	}
 
 	if isMountPoint {
-		volumeLogger.Info("volume is already mounted to pod, nothing to do")
-
 		success = true
 
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
-	volumeLogger.Info("bind mounting data directory to the pod's mount namespace")
-
 	err = ns.Mounter.Mount(ns.StorageBackend.PathForVolume(volumeID), targetPath, "", []string{"bind", "ro"})
 	if err != nil {
 		return nil, fmt.Errorf("error mounting volume to pod %w", err)
 	}
-
-	volumeLogger.Info("successfully mounted volume to pod")
 
 	success = true
 
@@ -125,10 +108,6 @@ func (ns *NodeServer) NodeUnpublishVolume(
 	_ context.Context,
 	req *csi.NodeUnpublishVolumeRequest,
 ) (*csi.NodeUnpublishVolumeResponse, error) {
-	volumeLogger := ns.Logger.With(
-		zap.String("target path", req.GetTargetPath()),
-		zap.String("volume ID", req.GetVolumeId()),
-	)
 	// check to see if volume is mounted
 	isMounted, err := ns.Mounter.IsMountPoint(req.GetTargetPath())
 	if err != nil {
@@ -140,16 +119,12 @@ func (ns *NodeServer) NodeUnpublishVolume(
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmount volume: %w", err)
 		}
-
-		volumeLogger.Info("unmounted volume")
 	}
 
 	err = ns.StorageBackend.RemoveVolume(req.GetVolumeId())
 	if err != nil {
 		return nil, fmt.Errorf("failed to remove directories: %w", err)
 	}
-
-	volumeLogger.Info("removed directories")
 
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }

@@ -42,7 +42,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: mattslater/csi-driver-linux:v0.1.1
+          image: mattslater/csi-driver-linux:v0.1.2
           volumeMounts:
             - name: plugin-dir
               mountPath: /csi

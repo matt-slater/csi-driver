@@ -23,7 +23,12 @@ const (
 	rwePerms = 0o700
 )
 
-func NewFilesystem(logger *zap.Logger, baseDirectory string, rootFS fs.FS, mounter mount.Interface) (*Filesystem, error) {
+func NewFilesystem(
+	logger *zap.Logger,
+	baseDirectory string,
+	rootFS fs.FS,
+	mounter mount.Interface,
+) (*Filesystem, error) {
 	tempfsPath := filepath.Join(baseDirectory, "inmemfs")
 
 	filesystem := &Filesystem{
@@ -62,7 +67,7 @@ func NewFilesystem(logger *zap.Logger, baseDirectory string, rootFS fs.FS, mount
 	return filesystem, nil
 }
 
-func (f *Filesystem) WriteVolume(id string, _ string, vCtx map[string]string) (bool, error) {
+func (f *Filesystem) WriteVolume(id string, vCtx map[string]string) (bool, error) {
 	datapath := filepath.Join(f.tempfsPath, id, "data")
 	// check if volume already exists
 	err := os.MkdirAll(datapath, rwePerms)
